@@ -1,0 +1,85 @@
+[
+  {
+    "question": "What is the company's return policy?",
+    "expected_answer": "Products can be returned within 30 days of purchase with the original receipt.",
+    "groups": [
+      "sales"
+    ],
+    "source_file": "sales_policy.pdf"
+  },
+  {
+    "question": "How many days of annual leave are employees entitled to?",
+    "expected_answer": "Full-time employees are entitled to 20 days of paid annual leave per calendar year.",
+    "groups": [
+      "hr"
+    ],
+    "source_file": "employee_handbook.pdf"
+  },
+  {
+    "question": "What is the escalation process for a P1 production incident?",
+    "expected_answer": "A P1 incident must be escalated to the on-call engineer within 15 minutes and the engineering manager must be notified within 30 minutes.",
+    "groups": [
+      "engineering"
+    ],
+    "source_file": "incident_response_playbook.pdf"
+  },
+  {
+    "question": "What discount tiers are available for enterprise customers?",
+    "expected_answer": "Enterprise customers are eligible for 10% discount on orders above $50,000 and 20% discount on orders above $200,000.",
+    "groups": [
+      "sales"
+    ],
+    "source_file": "pricing_guide.pdf"
+  },
+  {
+    "question": "What are the data retention periods for customer PII?",
+    "expected_answer": "Customer personally identifiable information must be retained for no more than 3 years after the end of the customer relationship, in line with GDPR Article 5.",
+    "groups": [
+      "legal",
+      "engineering"
+    ],
+    "source_file": "data_governance_policy.pdf"
+  },
+  {
+    "question": "What is the budget approval process for purchases over $10,000?",
+    "expected_answer": "Purchases exceeding $10,000 require approval from the department head and the CFO before a purchase order can be raised.",
+    "groups": [
+      "finance"
+    ],
+    "source_file": "procurement_policy.pdf"
+  },
+  {
+    "question": "Which cloud regions are approved for storing customer data?",
+    "expected_answer": "Customer data may only be stored in EU-West-1 (Ireland) and US-East-1 (Virginia) unless a specific regional exemption has been approved by the CISO.",
+    "groups": [
+      "engineering",
+      "legal"
+    ],
+    "source_file": "cloud_security_policy.pdf"
+  },
+  {
+    "question": "What is the performance review cycle?",
+    "expected_answer": "Performance reviews are conducted twice a year: mid-year in June and year-end in December. All managers must complete reviews within a 3-week window.",
+    "groups": [
+      "hr"
+    ],
+    "source_file": "performance_management_guide.pdf"
+  },
+  {
+    "question": "What SLA response time is guaranteed for premium support customers?",
+    "expected_answer": "Premium support customers are guaranteed an initial response within 2 hours for critical issues and within 8 business hours for non-critical issues.",
+    "groups": [
+      "sales",
+      "engineering"
+    ],
+    "source_file": "support_sla_agreement.pdf"
+  },
+  {
+    "question": "What onboarding steps must be completed in the first 30 days?",
+    "expected_answer": "New employees must complete security awareness training, sign the acceptable use policy, set up MFA on all company accounts, and attend the company orientation session within their first 30 days.",
+    "groups": [
+      "hr"
+    ],
+    "source_file": "onboarding_checklist.pdf"
+  }
+]
