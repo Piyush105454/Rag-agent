@@ -1,4 +1,4 @@
-﻿"""
+"""
 pptx_parser.py — PowerPoint (PPTX) parser for the ingestion pipeline.
 
 Primary strategy: unstructured.partition.pptx — handles embedded images,
@@ -156,20 +156,20 @@ class PPTXParser(BaseParser):
 
         pages: List[ParsedPage] = []
         try:
-            pages = await loop.run_in_executor(None, _parse_with_unstructured, file_path)
+            pages = await loop.run_in_executor(
+                None, _parse_with_python_pptx, file_path
+            )
             logger.info(
-                "Parsed '%s' with unstructured (%d slides).", file_name, len(pages)
+                "Parsed '%s' with python-pptx (%d slides).", file_name, len(pages)
             )
         except Exception as primary_exc:
             logger.warning(
-                "unstructured failed for '%s' (%s); falling back to python-pptx.",
+                "python-pptx failed for '%s' (%s); falling back to unstructured.",
                 file_name,
                 primary_exc,
             )
             try:
-                pages = await loop.run_in_executor(
-                    None, _parse_with_python_pptx, file_path
-                )
+                pages = await loop.run_in_executor(None, _parse_with_unstructured, file_path)
                 logger.info(
                     "Parsed '%s' with python-pptx (%d slides).", file_name, len(pages)
                 )

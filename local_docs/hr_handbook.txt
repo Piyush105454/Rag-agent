@@ -1,0 +1,183 @@
+ACME CORPORATION — EMPLOYEE HANDBOOK
+Human Resources | Version 8.0 | Effective January 2025
+============================================================
+
+PAGE 1 — WELCOME AND COMPANY VALUES
+============================================================
+
+1.1 Welcome Message from the CEO
+Welcome to ACME Corporation! We are a team of curious problem-solvers
+building technology that helps businesses unlock the value in their
+institutional knowledge. We are glad you are here.
+
+1.2 Our Core Values
+  TRUST:      We default to trusting our colleagues and our customers.
+  CURIOSITY:  We ask why before we ask how.
+  IMPACT:     We measure success by outcomes, not effort.
+  INCLUSION:  Every voice shapes our decisions.
+  SPEED:      We prefer done over perfect, and iterate from there.
+
+1.3 Company Overview
+  Founded:     2019 (San Francisco, CA)
+  Employees:   ~320 globally
+  Offices:     San Francisco (HQ), New York, London, Singapore
+  Remote:      ~40% of workforce is fully remote
+
+============================================================
+PAGE 2 — BENEFITS AND COMPENSATION
+============================================================
+
+2.1 Base Salary
+Salaries are benchmarked annually to the 65th percentile of Radford
+survey data for our size band. Bands are reviewed each January.
+
+2.2 Equity
+All full-time employees receive equity grants:
+  - Standard vest schedule: 4 years with 1-year cliff
+  - Cliff: 25% vests at 12 months
+  - Remaining: monthly vesting over 36 months
+  - Refresh grants: annual for exceeds-expectations performers
+
+2.3 Health Insurance (US employees)
+  Medical:  ACME covers 100% of employee premium, 80% of dependents
+  Dental:   100% employee, 80% dependents
+  Vision:   100% employee, 80% dependents
+  Provider: Anthem Blue Cross (PPO and HDHP options)
+
+2.4 Retirement (US employees)
+  - 401(k) with Fidelity
+  - ACME matches 4% of salary (dollar-for-dollar)
+  - Vesting: immediate for employer match
+
+2.5 International Benefits
+  UK:  Private health insurance via Bupa, pension via Royal London
+  SG:  CPF contributions per statutory requirements, supplemental Cigna
+
+2.6 Additional Benefits
+  Learning budget:        $2,000/year (books, courses, conferences)
+  Home office stipend:    $750 one-time for new hires
+  Wellness stipend:       $100/month (gym, apps, etc.)
+  Meal vouchers:          $200/month for SF/NY/London office employees
+  Parental leave:         16 weeks fully paid (all genders)
+  Fertility support:      Up to $10,000 lifetime benefit
+
+============================================================
+PAGE 3 — TIME OFF POLICY
+============================================================
+
+3.1 Paid Time Off (PTO)
+ACME uses an unlimited PTO policy. There is no accrual, no rollover,
+and no payout upon departure. The expectation is that employees take
+a minimum of 15 days per year.
+
+3.2 How to Request Time Off
+  1. Discuss with your manager at least 2 weeks in advance for
+     absences of 5+ business days.
+  2. Submit request in Rippling (HR system) under "Time Off."
+  3. Manager approves in Rippling. You will receive email confirmation.
+  4. Block your calendar and set an out-of-office reply.
+
+3.3 Company Holidays (US, 2025)
+  Jan 1  New Year Day        Jul 4  Independence Day
+  Jan 20 MLK Day             Sep 1  Labor Day
+  Feb 17 Presidents Day      Nov 27 Thanksgiving
+  May 26 Memorial Day        Dec 25 Christmas Day
+  Plus 2 floating holidays of your choice.
+
+3.4 Sick Leave
+  Sick leave is separate from PTO and does not count against it.
+  Use the "Sick Leave" category in Rippling. No approval required.
+  For absences >5 consecutive sick days, a doctor's note is required.
+
+3.5 Volunteer Time Off
+  All employees receive 16 hours (2 days) of paid volunteer time off
+  annually. Coordinate with your manager and log in Rippling as "VTO."
+
+============================================================
+PAGE 4 — REMOTE WORK AND WORKPLACE
+============================================================
+
+4.1 Remote Work Policy
+Fully remote employees may work from any location within their
+contracted country. Travel to your nearest ACME office is expected
+at least once per quarter for team rituals.
+
+4.2 Work Hours
+ACME is a results-oriented workplace. There are no mandated core
+hours globally. However:
+  - Employees must be reachable during 10am–3pm in their local time
+    zone on business days.
+  - Team meetings are scheduled to avoid routinely requiring early
+    morning or late evening attendance.
+
+4.3 Equipment Policy
+  New hires choose between:
+  - MacBook Pro 14" (M3 chip) — standard engineering
+  - MacBook Air 13" (M3 chip) — standard non-engineering
+  - Windows option available on request
+
+  Equipment ships before start date. All equipment remains ACME
+  property and must be returned within 10 business days of departure.
+
+4.4 Home Office
+Remote employees must maintain a suitable, private workspace.
+ACME is not responsible for internet connectivity costs unless
+mandated by local law.
+
+============================================================
+PAGE 5 — PERFORMANCE AND GROWTH
+============================================================
+
+5.1 Performance Review Cycle
+  - Mid-year review:  July (360-degree feedback, no ratings)
+  - Annual review:    January (ratings, compensation adjustments)
+  - New hire review:  90-day check-in with manager
+
+5.2 Performance Ratings
+  Exceeds Expectations (EE)    Top ~15% of performers
+  Meets Expectations (ME)      Majority of employees
+  Partially Meets (PM)         Improvement plan required
+  Does Not Meet (DNM)          At-risk for separation
+
+5.3 Promotion Process
+  1. Manager nominates during bi-annual calibration (Jan, Jul)
+  2. Calibration panel (skip-level + HR) approves or holds
+  3. Offers communicated within 2 weeks of calibration
+  4. Effective first day of following month
+
+5.4 Learning and Development
+  Use your $2,000 annual budget for:
+  - Online courses (Coursera, Udemy, Pluralsight, etc.)
+  - Books (physical or digital)
+  - Industry conferences (travel covered separately)
+  - Professional certifications (AWS, GCP, PMP, etc.)
+
+  Submit reimbursement receipts via Expensify within 30 days of purchase.
+
+============================================================
+PAGE 6 — CODE OF CONDUCT
+============================================================
+
+6.1 Professional Conduct
+ACME expects all employees to behave with integrity, respect, and
+professionalism at all times, including at company events, on Slack,
+in customer calls, and on social media when representing ACME.
+
+6.2 Conflicts of Interest
+Employees must disclose any situation that creates or could appear
+to create a conflict of interest. This includes:
+  - Investments in ACME customers or competitors (>1% ownership)
+  - Employment at a competing company
+  - Personal relationships with direct reports
+
+  Disclose via conflict-of-interest@acme.com.
+
+6.3 Anti-harassment Policy
+ACME has zero tolerance for harassment or discrimination of any kind.
+Report concerns to your People Business Partner or anonymously via
+the EthicsPoint hotline: 1-800-555-0199 or acme.ethicspoint.com.
+
+6.4 Confidentiality
+All employees sign an NDA as part of onboarding. Company data,
+customer data, and product roadmaps are confidential. Do not share
+outside ACME without explicit written authorization.

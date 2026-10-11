@@ -1,0 +1,180 @@
+ACME CORPORATION — ENGINEERING TECHNICAL SPECIFICATIONS
+Platform Architecture v2.4 | Updated: September 2025
+============================================================
+
+PAGE 1 — SYSTEM OVERVIEW
+============================================================
+
+1.1 Architecture Summary
+ACME Platform is a multi-tenant SaaS application built on a microservices
+architecture deployed on AWS. The system processes approximately 2 million
+API requests per day across its production cluster.
+
+Core components:
+  - API Gateway:     Kong (self-managed, k8s)
+  - Backend:         Python (FastAPI) + Node.js (BFF)
+  - Data layer:      PostgreSQL 16 (RDS), Redis 7 (ElastiCache)
+  - Vector store:    pgvector on dedicated RDS instance
+  - Message queue:   Amazon SQS + SNS
+  - Object storage:  S3 + CloudFront CDN
+  - Observability:   Datadog APM, CloudWatch, PagerDuty
+
+1.2 Deployment Regions
+  - Primary:      us-east-1 (N. Virginia)
+  - Secondary:    eu-west-1 (Ireland) — EU data residency
+  - DR standby:   us-west-2 (Oregon) — RTO 4h, RPO 1h
+
+============================================================
+PAGE 2 — API SPECIFICATIONS
+============================================================
+
+2.1 Authentication
+All API endpoints require JWT Bearer authentication unless marked public.
+Token format: HS256 signed, 24-hour expiry, claims include:
+  - sub:    user UUID
+  - org_id: organization UUID
+  - roles:  array of role strings
+  - exp:    Unix timestamp
+
+Public endpoints (no auth required):
+  GET  /health
+  GET  /api/v1/status
+  POST /api/v1/auth/login
+  POST /api/v1/auth/refresh
+
+2.2 Rate Limiting
+Per-token rate limits enforced at API Gateway:
+  Starter tier:       100 req/min, 10,000 req/day
+  Professional tier:  500 req/min, 100,000 req/day
+  Enterprise tier:    2,000 req/min, unlimited/day
+
+Rate limit headers returned on every response:
+  X-RateLimit-Limit: 500
+  X-RateLimit-Remaining: 487
+  X-RateLimit-Reset: 1720000000
+
+2.3 Core API Endpoints
+POST /api/v1/documents
+  Upload a document for processing. Accepts multipart/form-data.
+  Max file size: 50MB. Supported types: PDF, DOCX, XLSX, TXT, MD.
+  Returns: { document_id, status: "processing" | "ready" | "failed" }
+
+GET /api/v1/documents
+  List documents accessible to the authenticated user.
+  Query params: page, limit, access_group, search
+  Returns: paginated document array
+
+POST /api/v1/query
+  Submit a natural language query against the knowledge base.
+  Body: { question: string, stream?: boolean, top_k?: number }
+  Streaming: SSE (text/event-stream) when stream=true
+
+GET /api/v1/documents/{doc_id}/chunks
+  Retrieve indexed chunks for a document (admin only).
+
+============================================================
+PAGE 3 — DATABASE SCHEMA
+============================================================
+
+3.1 Primary Tables (PostgreSQL)
+documents
+  - id            UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - org_id        UUID NOT NULL REFERENCES organizations(id)
+  - file_name     TEXT NOT NULL
+  - source        TEXT NOT NULL  -- "drive" | "local" | "upload"
+  - access_group  TEXT NOT NULL
+  - drive_file_id TEXT
+  - indexed_at    TIMESTAMPTZ
+  - chunk_count   INTEGER DEFAULT 0
+  - metadata      JSONB DEFAULT '{}'
+  - created_at    TIMESTAMPTZ DEFAULT NOW()
+
+document_chunks
+  - id            UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - document_id   UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE
+  - chunk_index   INTEGER NOT NULL
+  - text          TEXT NOT NULL
+  - token_count   INTEGER NOT NULL
+  - page_number   INTEGER DEFAULT 1
+  - embedding     vector(384)        -- BAAI/bge-small-en-v1.5
+  - access_group  TEXT NOT NULL
+  - metadata      JSONB DEFAULT '{}'
+  - created_at    TIMESTAMPTZ DEFAULT NOW()
+
+3.2 Indexes
+  CREATE INDEX CONCURRENTLY idx_chunks_embedding
+    ON document_chunks USING hnsw (embedding vector_cosine_ops)
+    WITH (m=16, ef_construction=64);
+
+  CREATE INDEX idx_chunks_access_group
+    ON document_chunks (access_group);
+
+  CREATE INDEX idx_chunks_document
+    ON document_chunks (document_id);
+
+3.3 Access Control Pattern
+All queries filter chunks by access_group using:
+  WHERE access_group = ANY(:user_groups)
+Groups are extracted from the JWT claims array at query time.
+No row-level security (RLS) is used — application-level filtering.
+
+============================================================
+PAGE 4 — ML PIPELINE
+============================================================
+
+4.1 Embedding Model
+  Model:      BAAI/bge-small-en-v1.5
+  Dimensions: 384
+  Device:     CPU (controlled by EMBED_DEVICE env var)
+  Batch size: 32 documents per batch
+
+4.2 Reranker
+  Model:      BAAI/bge-reranker-base (cross-encoder)
+  Input:      Query + top-K retrieved chunks (K=20)
+  Output:     Reranked top-N chunks (N=5)
+  Device:     CPU
+
+4.3 LLM
+  Provider:   Groq API
+  Model:      llama-3.1-70b-versatile (default)
+  Max tokens: 2048 output
+  Streaming:  Yes (token-by-token via SSE)
+
+4.4 Chunking Strategy
+  Tokenizer:    tiktoken cl100k_base
+  Target size:  650 tokens per chunk
+  Overlap:      15% (approximately 98 tokens)
+  Boundary:     Sentence-aware splitting
+
+============================================================
+PAGE 5 — INFRASTRUCTURE AND DEVOPS
+============================================================
+
+5.1 Container Registry
+All services are packaged as Docker images and stored in ECR.
+Image tags follow semantic versioning: v{major}.{minor}.{patch}
+
+5.2 CI/CD Pipeline (GitHub Actions)
+  - PR checks:   lint (ruff, mypy), unit tests, security scan (trivy)
+  - Main branch: build images, push to ECR, deploy to staging
+  - Tags:        deploy to production (manual approval required)
+
+5.3 Environment Variables (required)
+  GROQ_API_KEY           Groq API key for LLM calls
+  JWT_SECRET             HS256 signing secret
+  DATABASE_URL           PostgreSQL connection string
+  REDIS_URL              Redis connection string
+  EMBED_DEVICE           "cpu" or "cuda"
+  GOOGLE_SERVICE_ACCOUNT_JSON  Path to service account key file
+  DRIVE_FOLDER_ID        Root Google Drive folder to index
+
+5.4 Health Check Endpoints
+  GET /health         Returns 200 with {"status":"ok","version":"x.x.x"}
+  GET /health/db      Checks DB connectivity
+  GET /health/redis   Checks Redis connectivity
+
+5.5 SLAs
+  API availability:    99.9% uptime (excluding maintenance windows)
+  P50 query latency:   <1.5s (first token)
+  P95 query latency:   <4s   (first token)
+  Ingestion throughput: 500 pages/minute

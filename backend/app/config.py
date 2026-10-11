@@ -1,4 +1,4 @@
-﻿"""
+"""
 app/config.py
 
 Central configuration module for the RAG backend.
@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     """All application configuration, sourced from environment variables."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=("../.env", ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",

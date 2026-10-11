@@ -1,4 +1,4 @@
-﻿"""
+"""
 app/main.py
 
 FastAPI application factory and entry point for the RAG backend.
@@ -19,6 +19,10 @@ in-memory model without reloading it per-request.
 """
 
 from __future__ import annotations
+
+from dotenv import load_dotenv
+load_dotenv(".env")
+load_dotenv("../.env")
 
 import logging
 import logging.config
@@ -209,19 +213,19 @@ def create_app() -> FastAPI:
 
     try:
         from app.api.routes.query import router as query_router  # type: ignore[import]
-        app.include_router(query_router, prefix="/query", tags=["Query"])
+        app.include_router(query_router, tags=["Query"])
     except ImportError:
         logger.warning("query router not available yet.")
 
     try:
         from app.api.routes.documents import router as documents_router  # type: ignore[import]
-        app.include_router(documents_router, prefix="/documents", tags=["Documents"])
+        app.include_router(documents_router, tags=["Documents"])
     except ImportError:
         logger.warning("documents router not available yet.")
 
     try:
         from app.api.routes.auth import router as auth_router  # type: ignore[import]
-        app.include_router(auth_router, prefix="/auth", tags=["Auth"])
+        app.include_router(auth_router, tags=["Auth"])
     except ImportError:
         logger.warning("auth router not available yet.")
 

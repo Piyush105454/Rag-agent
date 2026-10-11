@@ -38,8 +38,8 @@ async def list_documents(
         return []
 
     try:
-        from app.db.vector_store import get_vector_store  # type: ignore[import]
-        store = get_vector_store()
+        from app.vector_store.pgvector_store import get_vector_store  # type: ignore[import]
+        store = await get_vector_store()
         docs = await store.get_documents_by_groups(user_groups)
     except Exception as exc:
         raise HTTPException(

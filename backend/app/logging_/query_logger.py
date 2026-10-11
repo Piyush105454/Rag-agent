@@ -41,7 +41,7 @@ async def log_query(
         latency_ms:  Total time from API handler entry to first byte, in ms.
     """
     try:
-        from app.db.session import get_async_session  # type: ignore[import]
+        from app.db.session import AsyncSessionLocal  # type: ignore[import]
         from app.db.models import QueryLog              # type: ignore[import]
         from sqlalchemy import insert
 
@@ -51,15 +51,12 @@ async def log_query(
             "question": question,
             "rewritten_query": result.get("rewritten_query"),
             "answer": result.get("answer"),
-            "sources": json.dumps(result.get("sources", [])),
             "confidence": result.get("confidence", 0.0),
-            "is_low_confidence": result.get("is_low_confidence", False),
             "latency_ms": latency_ms,
-            "error": result.get("error"),
             "created_at": datetime.now(timezone.utc),
         }
 
-        async with get_async_session() as session:
+        async with AsyncSessionLocal() as session:
             await session.execute(insert(QueryLog).values(**row))
             await session.commit()
 
@@ -87,11 +84,11 @@ async def get_user_logs(
         List of log dicts ordered by created_at descending.
     """
     try:
-        from app.db.session import get_async_session  # type: ignore[import]
+        from app.db.session import AsyncSessionLocal  # type: ignore[import]
         from app.db.models import QueryLog              # type: ignore[import]
         from sqlalchemy import select, desc
 
-        async with get_async_session() as session:
+        async with AsyncSessionLocal() as session:
             stmt = (
                 select(QueryLog)
                 .where(QueryLog.user_id == user_id)

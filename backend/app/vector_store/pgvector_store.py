@@ -1,4 +1,4 @@
-﻿"""
+"""
 pgvector_store.py — Async PGVectorStore using asyncpg + pgvector.
 
 Uses raw asyncpg queries rather than SQLAlchemy ORM because pgvector operators
@@ -26,12 +26,13 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
 import asyncpg
 
-from app.core.config import settings
+from app.config import settings
 from app.vector_store.schemas import ChunkUpsert, SearchResult
 
 logger = logging.getLogger(__name__)
@@ -58,16 +59,22 @@ class PGVectorStore:
 
     async def connect(self) -> None:
         """Create the asyncpg connection pool and register pgvector codec."""
+        from urllib.parse import urlparse
+        from pgvector.asyncpg import register_vector
+        db_url = getattr(settings, "database_url", getattr(settings, "DATABASE_URL", "postgresql://rag:rag_secret@localhost:5432/rag_db"))
+        raw = db_url.replace("+asyncpg", "")
+        parsed = urlparse(raw)
         self._pool = await asyncpg.create_pool(
-            dsn=settings.DATABASE_URL,
+            host=parsed.hostname or "localhost",
+            port=parsed.port or 5432,
+            user=parsed.username or "rag",
+            password=parsed.password or "rag_secret",
+            database=(parsed.path or "/rag_db").lstrip("/"),
             min_size=2,
             max_size=10,
             command_timeout=60,
+            init=register_vector,
         )
-        # Register the vector type codec so asyncpg can parse VECTOR columns.
-        async with self._pool.acquire() as conn:
-            await conn.execute("CREATE EXTENSION IF NOT EXISTS vector")
-            await self._register_vector_codec(conn)
         logger.info("PGVectorStore connected (pool min=2, max=10).")
 
     async def close(self) -> None:
@@ -140,10 +147,10 @@ class PGVectorStore:
 
         sql = """
             INSERT INTO chunks
-                (chunk_id, document_id, file_name, page_number, text,
-                 embedding, access_group, metadata, updated_at)
+                (id, chunk_id, document_id, file_name, page_number, text,
+                 embedding, access_group, metadata)
             VALUES
-                ($1, $2, $3, $4, $5, $6::vector, $7, $8::jsonb, NOW())
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
             ON CONFLICT (chunk_id) DO UPDATE SET
                 document_id  = EXCLUDED.document_id,
                 file_name    = EXCLUDED.file_name,
@@ -151,8 +158,7 @@ class PGVectorStore:
                 text         = EXCLUDED.text,
                 embedding    = EXCLUDED.embedding,
                 access_group = EXCLUDED.access_group,
-                metadata     = EXCLUDED.metadata,
-                updated_at   = NOW()
+                metadata     = EXCLUDED.metadata
         """
 
         async with self.pool.acquire() as conn:
@@ -160,12 +166,13 @@ class PGVectorStore:
                 batch = chunks[batch_start: batch_start + _BATCH_SIZE]
                 records = [
                     (
+                        uuid.uuid4(),
                         c.chunk_id,
-                        c.document_id,
+                        UUID(c.document_id) if isinstance(c.document_id, str) else c.document_id,
                         c.file_name,
                         c.page_number,
                         c.text,
-                        "[" + ",".join(str(x) for x in c.embedding) + "]",
+                        list(c.embedding),
                         c.access_group,
                         json.dumps(c.metadata),
                     )
@@ -201,7 +208,7 @@ class PGVectorStore:
         if not user_groups:
             return []
 
-        vec_str = "[" + ",".join(str(x) for x in query_vec) + "]"
+        vec = list(query_vec)
 
         sql = """
             SELECT
@@ -210,17 +217,17 @@ class PGVectorStore:
                 file_name,
                 page_number,
                 text,
-                1 - (embedding <=> $1::vector) AS score,
+                1 - (embedding <=> $1) AS score,
                 access_group,
                 metadata
             FROM chunks
             WHERE access_group = ANY($2::text[])
-            ORDER BY embedding <=> $1::vector
+            ORDER BY embedding <=> $1
             LIMIT $3
         """
 
         async with self.pool.acquire() as conn:
-            rows = await conn.fetch(sql, vec_str, user_groups, top_k)
+            rows = await conn.fetch(sql, vec, user_groups, top_k)
 
         results: List[SearchResult] = []
         for row in rows:
@@ -271,30 +278,30 @@ class PGVectorStore:
 
         sql = """
             SELECT
-                document_id::text,
+                id::text AS document_id,
                 file_name,
                 access_group,
-                COUNT(*) AS chunk_count
-            FROM chunks
+                source,
+                chunk_count,
+                indexed_at::text AS indexed_at
+            FROM documents
             WHERE access_group = ANY($1::text[])
-            GROUP BY document_id, file_name, access_group
-            ORDER BY file_name
+            ORDER BY indexed_at DESC
         """
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(sql, groups)
 
-        return [
-            {
-                "document_id": row["document_id"],
-                "file_name": row["file_name"],
-                "access_group": row["access_group"],
-                "chunk_count": row["chunk_count"],
-            }
-            for row in rows
-        ]
+        return [dict(row) for row in rows]
 
 
 # ---------------------------------------------------------------------------
 # Module-level singleton (connected lazily via lifespan event in FastAPI)
 # ---------------------------------------------------------------------------
 vector_store = PGVectorStore()
+
+_store_instance = PGVectorStore()
+async def get_vector_store() -> PGVectorStore:
+    if _store_instance._pool is None:
+        await _store_instance.connect()
+    return _store_instance
+

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * tailwind.config.js
  *
  * Tailwind CSS configuration for the RAG Knowledge Assistant.

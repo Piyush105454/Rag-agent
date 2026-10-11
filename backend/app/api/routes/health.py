@@ -43,8 +43,8 @@ async def health_check() -> dict[str, Any]:
 
     # Embedding model check
     try:
-        from app.db.vector_store import get_vector_store  # type: ignore[import]
-        store = get_vector_store()
+        from app.vector_store.pgvector_store import get_vector_store  # type: ignore[import]
+        store = await get_vector_store()
         # Accessing the model attribute confirms it was loaded
         _ = store.embedding_model
     except Exception as exc:

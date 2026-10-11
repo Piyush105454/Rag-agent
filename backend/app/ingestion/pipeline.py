@@ -1,4 +1,4 @@
-﻿"""
+"""
 pipeline.py — IngestionPipeline: end-to-end document ingestion orchestrator.
 
 Wires together:  Parser -> Chunker -> Encoder (+cache) -> PGVectorStore -> FileTracker
@@ -31,12 +31,12 @@ from app.ingestion.chunker import TokenChunker
 from app.ingestion.parsers.base_parser import ParsedDocument
 from app.ingestion.parsers.pdf_parser import PDFParser
 from app.ingestion.parsers.pptx_parser import PPTXParser
-from app.vector_store.pgvector_store import vector_store
+from app.vector_store.pgvector_store import get_vector_store
 from app.vector_store.schemas import ChunkUpsert
 
 logger = logging.getLogger(__name__)
 
-_SUPPORTED_EXTENSIONS = {".pdf", ".pptx", ".ppt"}
+_SUPPORTED_EXTENSIONS = {".pdf", ".pptx", ".ppt", ".txt", ".md"}
 
 
 def _deterministic_chunk_id(file_id: str, page_number: int, chunk_index: int) -> str:
@@ -113,11 +113,10 @@ class IngestionPipeline:
 
         try:
             # ---- Step 0: Atomic replace — delete old chunks if re-ingesting ----
+            store = await get_vector_store()
             if await file_tracker.file_exists(file_id):
-                old_chunk_ids = await file_tracker.remove_file(file_id)
-                if old_chunk_ids:
-                    await vector_store.delete_by_file_id(file_id)
-                logger.info("Re-ingesting '%s': removed %d old chunks.", file_name, len(old_chunk_ids))
+                await file_tracker.remove_file(file_id)
+                logger.info("Re-ingesting '%s': purged previous records.", file_name)
 
             # ---- Step 1: Parse ----
             parsed_doc: ParsedDocument = await self._parse_file(file_path, file_name)
@@ -144,16 +143,23 @@ class IngestionPipeline:
             texts = [c["text"] for c in all_chunks]
             embeddings = await self._embed_batch_cached(texts)
 
-            # ---- Step 4: Build ChunkUpsert objects ----
+            # ---- Step 4: Record document in DB (satisfies foreign key) ----
             document_id = str(uuid.UUID(hashlib.md5(file_id.encode()).hexdigest()))
-            chunk_upserts: List[ChunkUpsert] = []
-            chunk_ids: List[str] = []
+            await file_tracker.record_file(
+                doc_id=document_id,
+                file_id=file_id,
+                file_name=file_name,
+                access_group=access_group,
+                source=source,
+                chunk_count=len(all_chunks),
+            )
 
+            # ---- Step 5: Build ChunkUpsert objects & upsert into pgvector ----
+            chunk_upserts: List[ChunkUpsert] = []
             for i, (chunk_meta, embedding) in enumerate(zip(all_chunks, embeddings)):
                 cid = _deterministic_chunk_id(
                     file_id, chunk_meta["page_number"], chunk_meta["chunk_index"]
                 )
-                chunk_ids.append(cid)
                 chunk_upserts.append(
                     ChunkUpsert.from_numpy(
                         chunk_id=cid,
@@ -171,18 +177,8 @@ class IngestionPipeline:
                     )
                 )
 
-            # ---- Step 5: Upsert into pgvector ----
-            await vector_store.upsert_chunks(chunk_upserts)
+            await store.upsert_chunks(chunk_upserts)
             stats["chunks_created"] = len(chunk_upserts)
-
-            # ---- Step 6: Record in file_tracker ----
-            await file_tracker.record_file(
-                file_id=file_id,
-                file_name=file_name,
-                access_group=access_group,
-                source=source,
-                chunk_ids=chunk_ids,
-            )
 
             logger.info(
                 "Ingested '%s': %d pages, %d chunks.",
@@ -258,6 +254,16 @@ class IngestionPipeline:
             return await self._pdf_parser.parse(file_path)
         elif ext in {".pptx", ".ppt"}:
             return await self._pptx_parser.parse(file_path)
+        elif ext in {".txt", ".md"}:
+            text = Path(file_path).read_text(encoding="utf-8", errors="replace")
+            from app.ingestion.parsers.base_parser import ParsedPage
+            return ParsedDocument(
+                file_name=file_name,
+                source="local",
+                file_id="",
+                access_group="",
+                pages=[ParsedPage(page_number=1, text=text, tables=[])],
+            )
         else:
             raise ValueError(f"Unsupported file extension: {ext}")
 

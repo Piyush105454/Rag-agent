@@ -1,0 +1,93 @@
+# ==========================================
+# Environments and Sensitive Credentials
+# ==========================================
+.env
+*.env
+*.env.*
+!.env.example
+backend/.env
+secrets/
+*.pem
+*.key
+*.cert
+service_account.json
+
+# ==========================================
+# Python & Virtual Environments
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+env/
+
+# ==========================================
+# Node.js & Next.js Frontend
+# ==========================================
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+frontend/out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.turbo/
+
+# ==========================================
+# Local Documents & Large Binary Uploads
+# ==========================================
+local_docs/*.pptx
+local_docs/*.pdf
+local_docs/*.docx
+local_docs/*.xlsx
+
+# ==========================================
+# Logs, Temp, and Caches
+# ==========================================
+*.log
+logs/
+*.tmp
+*.temp
+.cache/
+huggingface/
+models/
+.pytest_cache/
+
+# ==========================================
+# Database & Volumes
+# ==========================================
+*.sqlite
+*.sqlite3
+postgres_data/
+
+# ==========================================
+# OS & IDE Files
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*.swo

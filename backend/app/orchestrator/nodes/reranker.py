@@ -77,13 +77,24 @@ async def run(state: AgentState) -> AgentState:
 
         top_k = scored[:TOP_K_RERANKED]
         reranked = [chunk for _, chunk in top_k]
-        confidence = float(top_k[0][0]) if top_k else 0.0
+        best_chunk = top_k[0][1] if top_k else None
+        if best_chunk and hasattr(best_chunk, "score"):
+            confidence = float(best_chunk.score)
+        elif best_chunk and isinstance(best_chunk, dict) and "score" in best_chunk:
+            confidence = float(best_chunk["score"])
+        else:
+            confidence = float(top_k[0][0]) if top_k else 0.0
 
     except Exception as exc:  # noqa: BLE001
-        logger.error("reranker: scoring failed: %s", exc)
-        # Fall back to the original order, truncated
+        logger.warning("reranker: scoring failed (%s); using vector similarity scores", exc)
+        # Fall back to the original vector search order and scores
         reranked = chunks[:TOP_K_RERANKED]
-        confidence = 0.0
+        if reranked and hasattr(reranked[0], "score"):
+            confidence = float(reranked[0].score)
+        elif reranked and isinstance(reranked[0], dict) and "score" in reranked[0]:
+            confidence = float(reranked[0]["score"])
+        else:
+            confidence = 0.0
 
     logger.debug(
         "reranker: top-%d chunks selected, confidence=%.4f",

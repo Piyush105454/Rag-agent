@@ -82,8 +82,8 @@ async def list_available_documents(token: str) -> list:
     user = verify_mcp_auth(token)
 
     try:
-        from app.db.vector_store import get_vector_store  # type: ignore[import]
-        store = get_vector_store()
+        from app.vector_store.pgvector_store import get_vector_store  # type: ignore[import]
+        store = await get_vector_store()
         docs = await store.get_documents_by_groups(user.groups)
     except Exception as exc:
         logger.error("list_available_documents: store lookup failed: %s", exc)

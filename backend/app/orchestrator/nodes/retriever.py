@@ -31,16 +31,20 @@ async def run(state: AgentState) -> AgentState:
         Updated AgentState with retrieved_chunks populated.
     """
     # Late import to avoid circular imports and allow lazy DB initialisation
-    from app.db.vector_store import get_vector_store  # type: ignore[import]
+    from app.vector_store.pgvector_store import get_vector_store  # type: ignore[import]
+    from app.embeddings.encoder import get_encoder  # type: ignore[import]
 
     query: str = state.get("rewritten_query") or state["question"]
     user_groups: list = state["user_groups"]
 
     try:
-        store = get_vector_store()
+        encoder = get_encoder()
+        query_vec = encoder.encode(query).tolist()
+        store = await get_vector_store()
         chunks = await store.similarity_search(
-            query=query,
+            query_vec=query_vec,
             user_groups=user_groups,
+            top_k=20,
         )
     except Exception as exc:  # noqa: BLE001
         logger.error("retriever: similarity_search failed: %s", exc)

@@ -1,4 +1,4 @@
-﻿"""
+"""
 app/db/session.py
 
 Async SQLAlchemy engine and session factory for the RAG backend.
@@ -92,3 +92,11 @@ async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database tables ready.")
+
+
+async def get_pool():
+    """Return the shared asyncpg pool from the vector store."""
+    from app.vector_store.pgvector_store import get_vector_store
+    store = await get_vector_store()
+    return store.pool
+

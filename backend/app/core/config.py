@@ -1,4 +1,4 @@
-﻿"""
+"""
 config.py — Application settings loaded from environment variables.
 
 Uses pydantic-settings BaseSettings so every field can be overridden by an
@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     """Central configuration for the RAG backend."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=("../.env", ".env"),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Database
     # ------------------------------------------------------------------
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/ragdb"
+    DATABASE_URL: str = "postgresql+asyncpg://rag:rag_secret@localhost:5432/rag_db"
 
     # ------------------------------------------------------------------
     # Embedding model
@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # LLM (Groq)
     # ------------------------------------------------------------------
     GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.1-70b-versatile"
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
 
     # ------------------------------------------------------------------
     # Auth / JWT

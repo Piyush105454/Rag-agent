@@ -1,4 +1,4 @@
-﻿# frontend/Dockerfile
+# frontend/Dockerfile
 # Multi-stage Node.js build for the Next.js frontend.
 # Stage 1 (deps):   installs production + dev dependencies
 # Stage 2 (builder): builds the Next.js application
@@ -13,8 +13,8 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 # Copy manifest files and install dependencies reproducibly
-COPY package.json package-lock.json* ./
-RUN npm ci --prefer-offline
+COPY package.json ./
+RUN npm install
 
 # ── Stage 2: Next.js build ────────────────────────────────────────────────────
 FROM node:20-alpine AS builder
