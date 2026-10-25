@@ -1,4 +1,4 @@
-﻿/**
+/**
  * lib/api.ts
  *
  * Typed API client for the RAG Knowledge Assistant backend.
@@ -10,8 +10,12 @@
 
 import type { Document, Source } from "./types";
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+export function getApiBase(): string {
+  if (typeof window !== "undefined" && window.location?.hostname) {
+    return `http://${window.location.hostname}:8000`;
+  }
+  return process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+}
 
 // ---------------------------------------------------------------------------
 // Documents
@@ -21,14 +25,14 @@ const API_BASE =
  * Fetch the list of documents accessible to the authenticated user.
  * The backend filters by access_group derived from the JWT claims.
  */
-export async function getDocuments(jwt: string): Promise<Document[]> {
-  const res = await fetch(`${API_BASE}/documents`, {
+export async function getDocuments(jwt?: string): Promise<Document[]> {
+  const token = jwt || "dev-token";
+  const res = await fetch(`${getApiBase()}/documents`, {
     method: "GET",
     headers: {
-      Authorization: `Bearer ${jwt}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    // Next.js cache: do not cache document list so sidebar stays fresh
     cache: "no-store",
   });
 
@@ -40,9 +44,37 @@ export async function getDocuments(jwt: string): Promise<Document[]> {
   }
 
   const data = (await res.json()) as { documents: Document[] } | Document[];
-  // Handle both {documents: [...]} and bare array shapes
   if (Array.isArray(data)) return data;
   return data.documents;
+}
+
+/**
+ * Upload and index a document directly from the frontend.
+ */
+export async function uploadDocument(
+  file: File,
+  accessGroup: string,
+  jwt?: string
+): Promise<{ status: string; file_name: string; chunks_created: number }> {
+  const token = jwt || "dev-token";
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("access_group", accessGroup);
+
+  const res = await fetch(`${getApiBase()}/documents/upload`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => "");
+    throw new Error(`Upload failed (${res.status}): ${errorText}`);
+  }
+
+  return (await res.json()) as { status: string; file_name: string; chunks_created: number };
 }
 
 // ---------------------------------------------------------------------------
@@ -51,12 +83,6 @@ export async function getDocuments(jwt: string): Promise<Document[]> {
 
 /**
  * Send a question to the backend and stream the SSE response.
- *
- * @param question  - The user's natural language question
- * @param jwt       - JWT bearer token
- * @param onToken   - Called for each incremental text token
- * @param onDone    - Called once with final sources + confidence when stream ends
- * @param onError   - Called if the backend sends an error event or fetch fails
  */
 export async function queryStream(
   question: string,
@@ -65,13 +91,14 @@ export async function queryStream(
   onDone: (sources: Source[], confidence: number) => void,
   onError: (errorMessage: string) => void
 ): Promise<void> {
+  const token = jwt || "dev-token";
   let res: Response;
 
   try {
-    res = await fetch(`${API_BASE}/query`, {
+    res = await fetch(`${getApiBase()}/query`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${jwt}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
@@ -101,22 +128,18 @@ export async function queryStream(
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
 
-  // Parse the SSE stream line by line
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
     buffer += decoder.decode(value, { stream: true });
 
-    // SSE events are separated by double newline
     const events = buffer.split("\n\n");
-    // Keep any incomplete trailing chunk in the buffer
     buffer = events.pop() ?? "";
 
     for (const rawEvent of events) {
       if (!rawEvent.trim()) continue;
 
-      // Extract the data line(s) — SSE format: "data: <json>"
       const dataLine = rawEvent
         .split("\n")
         .find((line) => line.startsWith("data:"));
@@ -129,7 +152,6 @@ export async function queryStream(
       try {
         parsed = JSON.parse(jsonStr) as Record<string, unknown>;
       } catch {
-        // Skip malformed events
         continue;
       }
 
@@ -154,6 +176,5 @@ export async function queryStream(
     }
   }
 
-  // If stream ended without a done event, signal completion with no sources
   onDone([], 0);
 }

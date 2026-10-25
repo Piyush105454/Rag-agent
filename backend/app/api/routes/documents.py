@@ -1,21 +1,76 @@
 """
-documents.py -- GET /documents endpoint.
+documents.py -- Document management and upload endpoints.
 
-Returns the list of indexed documents visible to the requesting user's
-access groups.  Requires a valid JWT -- access groups are read from the
-token, not from request parameters, so users cannot enumerate documents
-outside their entitlements.
+Allows listing accessible documents and uploading new PDFs, PPTXs, TXTs, or MD files
+directly from the frontend interface.
 """
 
 from __future__ import annotations
 
+import hashlib
+import os
+import shutil
 from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 
 from app.api.deps import get_current_user  # type: ignore[import]
+from app.ingestion.pipeline import ingestion_pipeline  # type: ignore[import]
 
 router = APIRouter(tags=["documents"])
+
+
+@router.post("/documents/upload", summary="Upload and index a document directly from the frontend")
+async def upload_document(
+    file: UploadFile = File(...),
+    access_group: str = Form("general"),
+    current_user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """Upload a PDF, PPTX, TXT, or MD file and index it into pgvector."""
+    uploads_dir = "/tmp/uploads"
+    os.makedirs(uploads_dir, exist_ok=True)
+    temp_path = os.path.join(uploads_dir, file.filename)
+
+    try:
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        file_id = hashlib.sha256(f"{file.filename}:{os.path.getsize(temp_path)}".encode()).hexdigest()[:32]
+
+        stats = await ingestion_pipeline.ingest_file(
+            file_path=temp_path,
+            file_id=file_id,
+            file_name=file.filename,
+            access_group=access_group,
+            source="upload",
+        )
+
+        if stats.get("errors"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to ingest {file.filename}: {'; '.join(stats['errors'])}",
+            )
+
+        return {
+            "status": "success",
+            "file_name": file.filename,
+            "access_group": access_group,
+            "chunks_created": stats.get("chunks_created", 0),
+            "pages_parsed": stats.get("pages_parsed", 0),
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Upload failed: {exc}",
+        ) from exc
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
 
 @router.get("/documents", summary="List documents visible to the current user")

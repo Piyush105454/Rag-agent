@@ -1,28 +1,32 @@
-﻿/**
+/**
  * app/chat/page.tsx
  *
  * Main chat interface for the RAG Knowledge Assistant.
- *
- * Layout (full-height flex row):
- *   - Left sidebar (w-64): Document library listing all accessible docs
- *   - Main area: Top bar + ChatWindow (scrollable) + InputBar (pinned bottom)
- *
- * Auth: JWT stored in localStorage via useAuth hook. A dev token input field
- * in the top bar allows pasting a JWT for testing without a real login page.
- *
- * Documents: Fetched on mount and on JWT change via GET /documents.
- * Chat: Managed by useStreamingQuery which handles SSE streaming.
+ * Includes direct frontend document upload (PDF, PPTX, TXT, MD) with live indexing,
+ * auto-authenticated developer state, and interactive citation sidebar.
  */
 
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import clsx from "clsx";
-import { BookOpen, RefreshCw, LogOut, ChevronRight, AlertCircle, Database } from "lucide-react";
+import {
+  BookOpen,
+  RefreshCw,
+  LogOut,
+  ChevronRight,
+  AlertCircle,
+  Database,
+  Upload,
+  X,
+  FileText,
+  CheckCircle2,
+  Loader2,
+} from "lucide-react";
 
 import { useAuth } from "@/hooks/useAuth";
 import { useStreamingQuery } from "@/hooks/useStreamingQuery";
-import { getDocuments } from "@/lib/api";
+import { getDocuments, uploadDocument } from "@/lib/api";
 import type { Document } from "@/lib/types";
 
 import ChatWindow from "@/components/ChatWindow";
@@ -64,6 +68,188 @@ function DocumentCard({ doc }: { doc: Document }) {
 }
 
 // ---------------------------------------------------------------------------
+// Upload Document Modal
+// ---------------------------------------------------------------------------
+
+interface UploadModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+  jwt: string | null;
+}
+
+function UploadModal({ isOpen, onClose, onSuccess, jwt }: UploadModalProps) {
+  const [file, setFile] = useState<File | null>(null);
+  const [accessGroup, setAccessGroup] = useState<string>("general");
+  const [isUploading, setIsUploading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  if (!isOpen) return null;
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
+      setError(null);
+      setSuccessMsg(null);
+    }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) {
+      setError("Please select a file to upload.");
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      const res = await uploadDocument(file, accessGroup, jwt || undefined);
+      setSuccessMsg(`Successfully indexed ${res.file_name} (${res.chunks_created} chunks)!`);
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      onSuccess();
+      setTimeout(() => {
+        onClose();
+        setSuccessMsg(null);
+      }, 1800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to upload document");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <Upload className="w-4 h-4 text-brand-400" />
+            <h2 className="text-sm font-semibold text-slate-100">Upload to Knowledge Base</h2>
+          </div>
+          <button
+            onClick={onClose}
+            disabled={isUploading}
+            className="text-slate-400 hover:text-slate-200 transition-colors p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleUpload} className="p-5 space-y-4">
+          {error && (
+            <div className="p-3 bg-red-900/30 border border-red-700/50 rounded-lg text-xs text-red-300 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-emerald-900/30 border border-emerald-700/50 rounded-lg text-xs text-emerald-300 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+              <span>{successMsg}</span>
+            </div>
+          )}
+
+          {/* File input / dropzone */}
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              Select Document (PDF, PPTX, TXT, MD)
+            </label>
+            <div
+              onClick={() => fileInputRef.current?.click()}
+              className={clsx(
+                "border-2 border-dashed rounded-lg p-5 text-center cursor-pointer transition-colors",
+                file
+                  ? "border-brand-500 bg-brand-950/20"
+                  : "border-slate-700 hover:border-slate-500 bg-slate-800/40"
+              )}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.pptx,.ppt,.txt,.md"
+                onChange={handleFileChange}
+                className="hidden"
+                disabled={isUploading}
+              />
+              <FileText className="w-8 h-8 text-brand-400 mx-auto mb-2 opacity-80" />
+              {file ? (
+                <div>
+                  <p className="text-xs font-medium text-slate-200 truncate">{file.name}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">
+                    {(file.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-medium text-slate-300">
+                    Click to select file from your computer
+                  </p>
+                  <p className="text-[10px] text-slate-500 mt-1">Supports PDF, PPTX, TXT, MD</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Access Group Dropdown */}
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+              Access Control Group
+            </label>
+            <select
+              value={accessGroup}
+              onChange={(e) => setAccessGroup(e.target.value)}
+              disabled={isUploading}
+              className="w-full text-xs bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-slate-200 outline-none focus:border-brand-500"
+            >
+              <option value="general">general (All employees)</option>
+              <option value="engineering">engineering (Engineering docs)</option>
+              <option value="sales">sales (Sales policies & quotas)</option>
+              <option value="product">product (Roadmaps & PRDs)</option>
+            </select>
+          </div>
+
+          {/* Actions */}
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={isUploading}
+              className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!file || isUploading}
+              className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-500 disabled:opacity-40 disabled:hover:bg-brand-600 text-white text-xs font-medium rounded-lg shadow-lg shadow-brand-600/20 transition-all"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Parsing & Indexing...</span>
+                </>
+              ) : (
+                <>
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload & Index</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // JWT token input (dev helper)
 // ---------------------------------------------------------------------------
 
@@ -75,7 +261,7 @@ interface TokenInputProps {
 
 function TokenInput({ currentJwt, onSet, onClear }: TokenInputProps) {
   const [inputValue, setInputValue] = useState("");
-  const [expanded, setExpanded] = useState(!currentJwt);
+  const [expanded, setExpanded] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +278,7 @@ function TokenInput({ currentJwt, onSet, onClear }: TokenInputProps) {
       <button
         onClick={() => setExpanded(true)}
         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-900/30 border border-emerald-700/40 hover:bg-emerald-900/50 transition-colors"
-        title="Click to change JWT"
+        title="Click to view/change JWT token"
       >
         <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
         <span className="text-xs text-emerald-300 font-medium">Authenticated</span>
@@ -142,17 +328,14 @@ export default function ChatPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [docsError, setDocsError] = useState<string | null>(null);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
 
   // Fetch documents whenever JWT changes
   const fetchDocs = useCallback(async () => {
-    if (!jwt) {
-      setDocuments([]);
-      return;
-    }
     setDocsLoading(true);
     setDocsError(null);
     try {
-      const docs = await getDocuments(jwt);
+      const docs = await getDocuments(jwt || undefined);
       setDocuments(docs);
     } catch (err) {
       setDocsError(
@@ -171,8 +354,7 @@ export default function ChatPage() {
   // Handle query submission
   const handleSend = useCallback(
     (question: string) => {
-      if (!jwt) return;
-      void sendQuery(question, jwt);
+      void sendQuery(question, jwt || "dev-token");
     },
     [jwt, sendQuery]
   );
@@ -198,6 +380,17 @@ export default function ChatPage() {
           </div>
         </div>
 
+        {/* Upload Button */}
+        <div className="p-3 border-b border-slate-800">
+          <button
+            onClick={() => setIsUploadOpen(true)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-semibold shadow-md shadow-brand-600/20 transition-all"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Upload Document</span>
+          </button>
+        </div>
+
         {/* Document list */}
         <div className="flex-1 overflow-y-auto py-2 px-2">
           {/* Refresh + count header */}
@@ -207,7 +400,7 @@ export default function ChatPage() {
             </span>
             <button
               onClick={() => void fetchDocs()}
-              disabled={docsLoading || !isAuthenticated}
+              disabled={docsLoading}
               className="p-1 rounded hover:bg-slate-700 text-slate-500 hover:text-slate-300 transition-colors disabled:opacity-40"
               title="Refresh document list"
             >
@@ -216,15 +409,6 @@ export default function ChatPage() {
               />
             </button>
           </div>
-
-          {/* Not authenticated */}
-          {!isAuthenticated && (
-            <div className="px-2 py-4 text-center">
-              <p className="text-xs text-slate-500">
-                Set your JWT token to see your documents
-              </p>
-            </div>
-          )}
 
           {/* Error state */}
           {docsError && (
@@ -258,12 +442,12 @@ export default function ChatPage() {
           )}
 
           {/* Empty state */}
-          {!docsLoading && isAuthenticated && documents.length === 0 && !docsError && (
+          {!docsLoading && documents.length === 0 && !docsError && (
             <div className="px-2 py-6 text-center">
               <BookOpen className="w-6 h-6 text-slate-600 mx-auto mb-2" />
-              <p className="text-xs text-slate-500">No documents found</p>
-              <p className="text-[10px] text-slate-600 mt-1">
-                Your access groups may not have indexed documents yet.
+              <p className="text-xs text-slate-400 font-medium">No documents yet</p>
+              <p className="text-[10px] text-slate-500 mt-1">
+                Click "+ Upload Document" above to index your first PDF or PPTX file.
               </p>
             </div>
           )}
@@ -302,31 +486,23 @@ export default function ChatPage() {
           />
         </header>
 
-        {/* No JWT warning banner */}
-        {!isAuthenticated && (
-          <div className="flex-shrink-0 px-6 py-2 bg-yellow-900/20 border-b border-yellow-800/30">
-            <div className="flex items-center gap-2 text-xs text-yellow-300">
-              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>
-                Paste your JWT token in the top-right field to start chatting.
-                Generate one with:{" "}
-                <code className="bg-yellow-900/40 px-1 rounded font-mono text-[10px]">
-                  python scripts/generate_jwt.py --user-id alice --groups engineering
-                </code>
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Chat window */}
         <ChatWindow messages={messages} />
 
         {/* Input bar */}
         <InputBar
           onSend={handleSend}
-          disabled={isStreaming || !isAuthenticated}
+          disabled={isStreaming}
         />
       </main>
+
+      {/* Upload Modal */}
+      <UploadModal
+        isOpen={isUploadOpen}
+        onClose={() => setIsUploadOpen(false)}
+        onSuccess={() => void fetchDocs()}
+        jwt={jwt}
+      />
     </div>
   );
 }

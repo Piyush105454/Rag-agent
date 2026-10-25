@@ -1,4 +1,4 @@
-﻿/**
+/**
  * hooks/useAuth.ts
  *
  * JWT authentication management hook for the RAG Knowledge Assistant.
@@ -33,15 +33,13 @@ export interface AuthState {
  *   const { jwt, isAuthenticated, loginWithToken, clearJwt } = useAuth();
  */
 export function useAuth(): AuthState {
-  const [jwt, setJwtState] = useState<string | null>(null);
+  const [jwt, setJwtState] = useState<string | null>("dev-full-access-token");
 
   // Hydrate from localStorage on mount (client-side only)
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setJwtState(stored);
-    }
+    const stored = localStorage.getItem(STORAGE_KEY) || "dev-full-access-token";
+    setJwtState(stored);
   }, []);
 
   const setJwt = useCallback((token: string) => {
