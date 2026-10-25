@@ -1,4 +1,4 @@
-﻿# backend/Dockerfile
+# backend/Dockerfile
 # Multi-stage build for the RAG backend.
 # Stage 1 (builder): installs Python dependencies into a venv.
 # Stage 2 (runtime): copies the venv and app code, adds system-level document
@@ -23,6 +23,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
+    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt
 
 # ── Stage 2: runtime image ────────────────────────────────────────────────────
