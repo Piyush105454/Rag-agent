@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env bash
+#!/bin/bash
 # start.sh
 # Container entrypoint that starts both the FastAPI HTTP server and the MCP
 # SSE server concurrently. Both processes are kept alive by wait; if either
@@ -20,7 +20,7 @@ UVICORN_PID=$!
 echo "[start.sh] uvicorn started (PID $UVICORN_PID)"
 
 # ── MCP SSE Server (port 8001) ────────────────────────────────────────────────
-python -m app.mcp_server &
+python -m app.mcp_server.server &
 MCP_PID=$!
 echo "[start.sh] MCP server started (PID $MCP_PID)"
 

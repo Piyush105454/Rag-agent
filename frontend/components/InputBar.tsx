@@ -1,11 +1,8 @@
-﻿/**
+/**
  * components/InputBar.tsx
  *
- * Auto-resizing textarea input bar for submitting queries.
- * - Submit on Enter (Shift+Enter inserts newline)
- * - Send button disabled while streaming is in progress
- * - Textarea auto-resizes up to a max height then scrolls
- * - Listens for `suggestion-click` custom events from ChatWindow empty state
+ * Modern floating dock input bar for submitting RAG queries.
+ * Features auto-expanding textarea, keyboard shortcuts, and glowing send state.
  */
 
 "use client";
@@ -18,7 +15,7 @@ import React, {
   useCallback,
 } from "react";
 import clsx from "clsx";
-import { Send } from "lucide-react";
+import { ArrowUp, CornerDownLeft } from "lucide-react";
 
 interface InputBarProps {
   onSend: (question: string) => void;
@@ -59,7 +56,6 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
-    // Reset height
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -78,15 +74,15 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
   const canSend = value.trim().length > 0 && !disabled;
 
   return (
-    <div className="border-t border-slate-700/50 bg-slate-900/80 backdrop-blur-sm px-4 py-3">
+    <div className="flex-shrink-0 px-4 md:px-8 pb-5 pt-2 bg-gradient-to-t from-slate-950 via-slate-950/80 to-transparent">
       <div className="max-w-4xl mx-auto">
         <div
           className={clsx(
-            "flex items-end gap-2 rounded-2xl border px-4 py-2",
-            "bg-slate-800 transition-colors duration-150",
+            "flex items-end gap-2.5 rounded-2xl p-2.5 pl-4 backdrop-blur-xl transition-all duration-200",
+            "bg-slate-900/90 border shadow-2xl shadow-slate-950/80",
             disabled
-              ? "border-slate-700/40 opacity-70"
-              : "border-slate-600/60 focus-within:border-brand-500/70"
+              ? "border-slate-800/60 opacity-70"
+              : "border-slate-700/80 focus-within:border-brand-500/80 focus-within:ring-2 focus-within:ring-brand-500/20"
           )}
         >
           <textarea
@@ -97,35 +93,44 @@ export default function InputBar({ onSend, disabled }: InputBarProps) {
             disabled={disabled}
             rows={1}
             placeholder={
-              disabled ? "Waiting for response..." : "Ask a question..."
+              disabled
+                ? "Synthesizing answer from retrieved sources..."
+                : "Ask any question about company policies, specs, or docs..."
             }
             aria-label="Question input"
             className={clsx(
               "flex-1 bg-transparent resize-none outline-none",
               "text-sm text-slate-100 placeholder-slate-500",
-              "min-h-[24px] max-h-[200px] py-1",
-              "scrollbar-thin scrollbar-thumb-slate-600"
+              "min-h-[28px] max-h-[200px] py-1.5",
+              "scrollbar-thin scrollbar-thumb-slate-700"
             )}
             style={{ overflowY: "auto" }}
           />
+
           <button
             onClick={handleSend}
             disabled={!canSend}
             aria-label="Send message"
             className={clsx(
-              "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center",
-              "transition-all duration-150 mb-0.5",
+              "flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer",
               canSend
-                ? "bg-brand-600 hover:bg-brand-500 text-white shadow-sm"
-                : "bg-slate-700 text-slate-500 cursor-not-allowed"
+                ? "bg-gradient-to-tr from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white shadow-lg shadow-brand-500/30 scale-100"
+                : "bg-slate-800 text-slate-600 cursor-not-allowed scale-95"
             )}
           >
-            <Send className="w-4 h-4" />
+            <ArrowUp className="w-4 h-4 stroke-[2.5]" />
           </button>
         </div>
-        <p className="text-center text-slate-600 text-xs mt-1.5">
-          Press Enter to send · Shift+Enter for newline
-        </p>
+
+        <div className="flex items-center justify-between px-2 mt-2 text-[11px] text-slate-500">
+          <span>Enterprise RAG · Row-Level Security Enforced</span>
+          <div className="flex items-center gap-1">
+            <span>Send</span>
+            <kbd className="px-1.5 py-0.5 rounded bg-slate-800/80 border border-slate-700/60 text-[9px] font-mono text-slate-400">
+              Enter ↵
+            </kbd>
+          </div>
+        </div>
       </div>
     </div>
   );
